@@ -3,7 +3,7 @@ from flask import Flask, request, jsonify
 app = Flask(__name__)
 
 charImages = {
-    "奈芙爾": "https://example.com/images/neuvillette.png",
+    "奈芙爾": "https://upload-os-bbs.hoyolab.com/upload/2025/10/22/248396204/03efcd616004083b56f1236291a8168c_1765848458562635549.jpg",
     "甘雨": "https://example.com/images/ganyu.png",
 }
 
