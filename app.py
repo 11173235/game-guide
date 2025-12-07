@@ -11,7 +11,7 @@ charImages = {
 def webhook():
     data = request.get_json()
     print(data)
-    character = data["queryResult"]["parameters"].get("GenshinCharacter")  # 從你的聊天機器人接收角色名
+    character = data["queryResult"]["parameters"].get("genshincharacter")  # 從你的聊天機器人接收角色名
     image_url = charImages.get(character, "")
     if character in charImages:
         image_url = charImages[character]
