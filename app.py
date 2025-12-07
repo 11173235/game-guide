@@ -18,7 +18,7 @@ def webhook():
         text_reply = f"{character} 的培養攻略"
     return jsonify({
         "fulfillmentText": text_reply,
-        "fulfillmentMessages": [{"text": {"text": [text_reply]}},{"image": {"imageurl": image_url}}]})
+        "fulfillmentMessages": [{"text": {"text": [text_reply]}},{"image": {"imageUri": image_url}}]})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
