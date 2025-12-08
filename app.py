@@ -1,11 +1,49 @@
 from flask import Flask, request
 from linebot import LineBotApi, WebhookParser
 from linebot.models import MessageEvent, TextMessage, TextSendMessage, ImageSendMessage
+import requests
+import json
 
 app = Flask(__name__)
 
 line_bot_api = LineBotApi('anVtJcf0vZHWkiEt0A6Dbmu7/pd4d8vyDFoTlMSYkGDJTN2BBKR1U0yDFr0dOM4iAuxnZ4DrWXjd1+KW/v7Qpr44FeJ5yej8tThV+8OroQ9MpgEFq8RPFIaJvHvU3gCyT1Jz5PlSDxY0yhhzP4zB7QdB04t89/1O/w1cDnyilFU=')
 parser = WebhookParser('2d309aac1dc97f255aad5d939ba1baa6')
+dialogflow_project_ID = "gameguide-w9ep"
+DIALOGFLOW_PROJECT_ID = "你的 project id"
+DIALOGFLOW_LANGUAGE_CODE = "zh-TW"
+
+def call_dialogflow(text):
+    url = f"https://dialogflow.googleapis.com/v2/projects/{DIALOGFLOW_PROJECT_ID}/agent/sessions/line_bot_session:detectIntent"
+    headers = {
+        "Authorization": "Bearer YOUR_DIALOGFLOW_ACCESS_TOKEN",
+        "Content-Type": "application/json"}
+    payload = {
+        "query_input": {
+            "text": {
+                "text": text,
+                "language_code": DIALOGFLOW_LANGUAGE_CODE}}}
+    resp = requests.post(url, headers=headers, json=payload)
+    data = resp.json()
+
+    entities = {}
+    try:
+        parameters = data['queryResult']['parameters']
+        for e in ["genshincharacter", "starrailcharacter", "zzzcharacter"]:
+            if e in parameters and parameters[e]:
+                entities[e] = parameters[e]
+    except:
+        pass
+
+    return {"entities": entities}
+
+def match_character(user_input):
+    result = call_dialogflow(user_input)
+    entities = result.get("entities", {})
+
+    for e in ["genshincharacter", "starrailcharacter", "zzzcharacter"]:
+        if e in entities and entities[e]:
+            return entities[e]
+    return None
 
 # 記錄使用者流程模式
 user_context = {}
@@ -86,7 +124,7 @@ def handle_message(event):
 
     # ① Rich Menu 文字觸發角色培養攻略流程 ---
     if text == "角色培養攻略":
-        user_context[user_id] = "character_guide"
+        user_context[user_id] = "characterguide"
         line_bot_api.reply_message(
             event.reply_token,
             TextSendMessage(text="請輸入你想查詢的角色名稱（例如：角色A）"))
@@ -99,18 +137,13 @@ def handle_message(event):
             line_bot_api.reply_message(
                 event.reply_token,
                 TextSendMessage("找不到這個角色，請確認名字是否正確！"))
-            continue
+            return
 
-    # 找圖片
+    # ③ 找圖片
     img_url = CHARACTER_IMAGES.get(character)
     line_bot_api.reply_message(
         event.reply_token,
         ImageSendMessage(
             original_content_url=img_url,
             preview_image_url=img_url))
-
-    # ③ 未選功能 → 引導選單
-    line_bot_api.reply_message(
-        event.reply_token,
-        TextSendMessage("請先從下方選單點『角色培養攻略』"))
 return 'OK'
