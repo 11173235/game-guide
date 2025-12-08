@@ -67,6 +67,19 @@ def match_character(user_input):
 
 # LINE Webhook 主程式
 @app.route("/callback", methods=['POST'])
+def callback():
+    signature = request.headers['X-Line-Signature']
+    body = request.get_data(as_text=True)
+    try:
+        events = parser.parse(body, signature)
+    except:
+        return 'OK'
+    
+    for event in events:
+        if isinstance(event, MessageEvent) and isinstance(event.message, TextMessage):
+            handle_text_message(event)
+    return 'OK'
+
 def handle_message(event):
     user_id = event.source.user_id
     text = event.message.text.strip()
