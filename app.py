@@ -1,68 +1,119 @@
-from flask import Flask, request, jsonify
-from linebot import LineBotApi
-from linebot.models import ImageSendMessage, TextSendMessage
-import requests
+from flask import Flask, request
+from linebot import LineBotApi, WebhookParser
+from linebot.models import MessageEvent, TextMessage, TextSendMessage, ImageSendMessage
 
 app = Flask(__name__)
 
-LINE_CHANNEL_ACCESS_TOKEN = "anVtJcf0vZHWkiEt0A6Dbmu7/pd4d8vyDFoTlMSYkGDJTN2BBKR1U0yDFr0dOM4iAuxnZ4DrWXjd1+KW/v7Qpr44FeJ5yej8tThV+8OroQ9MpgEFq8RPFIaJvHvU3gCyT1Jz5PlSDxY0yhhzP4zB7QdB04t89/1O/w1cDnyilFU="
-LINE_CHANNEL_SECRET = "2d309aac1dc97f255aad5d939ba1baa6"
-line_bot_api = LineBotApi(LINE_CHANNEL_ACCESS_TOKEN)
+line_bot_api = LineBotApi('anVtJcf0vZHWkiEt0A6Dbmu7/pd4d8vyDFoTlMSYkGDJTN2BBKR1U0yDFr0dOM4iAuxnZ4DrWXjd1+KW/v7Qpr44FeJ5yej8tThV+8OroQ9MpgEFq8RPFIaJvHvU3gCyT1Jz5PlSDxY0yhhzP4zB7QdB04t89/1O/w1cDnyilFU=')
+parser = WebhookParser('2d309aac1dc97f255aad5d939ba1baa6')
 
-# 簡單 session context 記錄使用者模式
-user_context = {}
+# 記錄使用者流程模式
+user_context = {}   # {user_id: "guide"}
 
-@app.route("/webhook", methods=['POST'])
-def webhook():
-    req = request.get_json()
-    event = req.get("originalDetectIntentRequest", {}).get("payload", {})
-    reply_token = event.get("replyToken")
-    user_id = event.get("source", {}).get("userId")
+# 角色圖片字典（之後你直接在這裡加資料）
+CHARACTER_IMAGES = {
+    # ---- 原神 ----
+    "杜林": "https://upload-os-bbs.hoyolab.com/upload/2025/12/03/248396204/0f4481279430a17e7df8546973f1bf45_1737055575909256174.jpg",
+    "溫迪": "https://upload-os-bbs.hoyolab.com/upload/2023/09/16/248396282/d3c070cfea1cb91251921e52cc439e49_1631429753459849743.png",
+    "雅珂達": "https://upload-os-bbs.hoyolab.com/upload/2025/12/03/248396204/0e9958023b33fcb34348d67103b1038a_1297440543828697616.jpg",
+    "阿蕾奇諾": "https://upload-os-bbs.hoyolab.com/upload/2025/10/20/248396204/abfac41f0e4f604a01e36f7bd16a2cbd_2557934871374952669.jpg",
+    "鍾離": "https://upload-os-bbs.hoyolab.com/upload/2023/05/17/248396204/18079dc0916553c1a6d6c56cc6384288_6032047032970909430.png",
+    "奈芙爾": "https://upload-os-bbs.hoyolab.com/upload/2025/10/22/248396204/03efcd616004083b56f1236291a8168c_1765848458562635549.jpg",
+    "芙寧娜": "https://upload-os-bbs.hoyolab.com/upload/2023/11/07/248396204/af48adb667fc252c7c19e78ae85a845e_2649553244189510984.png",
+    "菲林斯": "https://upload-os-bbs.hoyolab.com/upload/2025/09/29/248396204/86565129968b752c57f54294a09f2274_8369161948052686452.jpg",
+    "夜蘭": "https://upload-os-bbs.hoyolab.com/upload/2023/08/05/248396204/bf81220dce8368521e1f0c3c250ad447_1269170865623546364.png",
+    "愛諾": "https://upload-os-bbs.hoyolab.com/upload/2025/09/10/248396204/d6dd3276c1e343e7556d4d8f292bcf64_2312607690677255983.jpg",
+    "菈烏瑪": "https://upload-os-bbs.hoyolab.com/upload/2025/09/09/248396204/64021a3545318c8239fbe169207deee5_598967942769683403.jpg",
+    "納西妲": "https://upload-os-bbs.hoyolab.com/upload/2023/06/26/248396204/96286609cb5cd4c507f1b438a4191c25_4194586395710844704.png",
 
-    # 1️⃣ 處理 Rich Menu Postback，進入「角色培養攻略模式」
-    if event.get("type") == "postback":
-        data = event["postback"]["data"]  # e.g., "mode=character_build"
-        if "character_build" in data:
-            user_context[user_id] = "character_build"
-            line_bot_api.reply_message(
-                reply_token,
-                TextSendMessage(text="已切換到角色培養攻略模式，請輸入角色名字。"))
-            return jsonify({}), 200
+    # ---- 星穹鐵道 ----
+    "昔漣": "https://upload-os-bbs.hoyolab.com/upload/2025/11/04/248389735/475ff0615308b02decc6120a9c656695_4483968931015795177.jpg",
+    "白厄": "https://upload-os-bbs.hoyolab.com/upload/2025/10/24/248389735/e9618ffc07facc57f433731ac474a966_491074884864979226.jpg",
+    "賽飛兒": "https://upload-os-bbs.hoyolab.com/upload/2025/10/24/248389735/b394826ff48f7ccb07c60a810d0c3737_4024594253916700110.jpg",
+    "萬敵": "https://upload-os-bbs.hoyolab.com/upload/2025/10/24/248389735/a22bf3613043b594706649b38ae144a0_6624641749719964122.jpg",
+    "風菫": "https://upload-os-bbs.hoyolab.com/upload/2025/10/24/248389735/5041aa9b837b509c70c24f4dc210cbee_7694529708168387109.jpg",
+    "遐蝶": "https://upload-os-bbs.hoyolab.com/upload/2025/10/24/248389735/d150d7f196dfdc8a05532573472b3a1a_8724397418293741727.jpg",
+    "緹寶": "https://upload-os-bbs.hoyolab.com/upload/2025/10/24/248389735/f1ebb2d07777865ee59c172926a6058f_5788540008426415265.jpg",
+    "丹恆•騰荒": "https://upload-os-bbs.hoyolab.com/upload/2025/10/14/248389735/3c4285d3dcef07e56c67d6e4f166d8b8_1173165742150616443.jpg",
+    "那刻夏": "https://upload-os-bbs.hoyolab.com/upload/2025/09/14/248389735/2b9a6a9098e07e15809cea94e66189c1_8280043820105748653.jpg",
+    "長夜月": "https://upload-os-bbs.hoyolab.com/upload/2025/09/22/248389735/a6a2216640c13108cf8ea5856781f332_1091069923873400384.jpg",
+    "大黑塔": "https://upload-os-bbs.hoyolab.com/upload/2025/09/14/248389735/af0105189c217a22e16c178175ab2cce_6632122516925690103.jpg",
+    "Saber": "https://upload-os-bbs.hoyolab.com/upload/2025/07/01/248389735/da1ce3c7208a8b26806143cdf6c662df_8358127939087283967.jpg",
+    "Archer": "https://upload-os-bbs.hoyolab.com/upload/2025/07/01/248389735/48d6b1d28879b468f6721a994dd46874_3724605607459336321.jpg",
 
-    # 2️⃣ 處理文字訊息
-    elif event.get("type") == "message" and event["message"]["type"] == "text":
-        user_text = event["message"]["text"].lower()
+    # ---- 絕區零 ----
+    "琉音": "https://upload-os-bbs.hoyolab.com/upload/2025/11/23/370699309/47a8f937769f28acbc2302052248a2e7_7167502227653853082.jpg",
+    "雨果": "https://upload-os-bbs.hoyolab.com/upload/2025/05/08/370699309/f1c08028a356a2f9257999a33fa993de_268115483364083532.jpg",
+    "伊德海莉": "https://upload-os-bbs.hoyolab.com/upload/2025/11/02/370699309/bc33cc231634cab44b360cb3bb4a750d_2180040413477663816.jpg",
+    "橘福福": "https://upload-os-bbs.hoyolab.com/upload/2025/06/21/370699309/2418321b740d3001da2e3fa5ee148dec_8547786973576138117.jpg",
+    "盧西婭": "https://upload-os-bbs.hoyolab.com/upload/2025/10/13/370699309/ac624e72c2be90541f664df339b0e349_1059825127900072960.jpg",
+    "薇薇安": "https://upload-os-bbs.hoyolab.com/upload/2025/04/19/370699309/76975dcee9c115ea34ef8b69c7f713c9_8431175033744336911.png",
+    "狛野真斗": "https://upload-os-bbs.hoyolab.com/upload/2025/10/13/370699309/fa0a1299e74b53f64f5d18bfaf604b26_4848228649664302985.jpg",
+    "奧菲絲•馬格努森&「鬼火」": "https://upload-os-bbs.hoyolab.com/upload/2025/09/22/370699309/2221f1afd6080ce6dc4b90d97030d4ca_6158325346300109334.jpg",
+    "伊芙琳": "https://upload-os-bbs.hoyolab.com/upload/2025/02/11/370699309/5469e4ac5bbbe07578c35cb8f112817c_6769450492245556957.png",
+    "「席德」": "https://upload-os-bbs.hoyolab.com/upload/2025/09/02/370699309/29e9eb5ba9edeeaccb1fe88c943830bc_4293272389443311205.jpg",
+    "「扳機」": "https://upload-os-bbs.hoyolab.com/upload/2025/03/31/370699309/e4288113f121760254acc55dec278244_7842277090726115056.png",}
 
-        # 只在角色培養攻略模式才處理名字查詢
-        if user_context.get(user_id) == "character_build":
-            # 從 Dialogflow 取得三個 entity
-            params = req["queryResult"]["parameters"]
-            genshin_name = params.get("genshincharacter")
-            starrail_name = params.get("starrailcharacter")
-            zzz_name = params.get("zzzcharacter")
+# Dialogflow entity 比對
+def match_character(user_input):
+    result = call_dialogflow(user_input)
+    entities = result.get("entities", {})
 
-            # 依序取第一個有值的角色名字
-            character_name = genshin_name or starrail_name or zzz_name
+    # 找到第一個命中的角色名稱（使用 entity 的標準值）
+    for e in ["genshincharacter", "starrailcharacter", "zzzcharacter"]:
+        if e in entities:
+            return entities[e]
+    return None
 
-            if character_name:
-                # 假設 Render API 可以回傳培養攻略圖片 URL
-                img_url = f"https://render-server.com/build/{character_name}.png"
+# LINE Webhook 主程式
+@app.route("/callback", methods=['POST'])
+def callback():
+    signature = request.headers['X-Line-Signature']
+    body = request.get_data(as_text=True)
+    events = parser.parse(body, signature)
+
+    for event in events:
+        user_id = event.source.user_id
+
+        if isinstance(event, MessageEvent) and isinstance(event.message, TextMessage):
+            text = event.message.text.strip()
+
+            # ① Rich Menu 按鈕文字
+            if text == "角色培養攻略":
+                user_context[user_id] = "characterguide"
                 line_bot_api.reply_message(
-                    reply_token,
-                    ImageSendMessage(original_content_url=img_url,
-                                     preview_image_url=img_url))
-            else:
-                # 三個 entity 都沒找到
-                line_bot_api.reply_message(
-                    reply_token,
-                    TextSendMessage(text="找不到角色，請確認名字或使用中文/英文別名。"))
-        else:
-            # 非角色培養攻略模式，可給一般回覆
+                    event.reply_token,
+                    TextSendMessage("請輸入角色名稱（原神/崩鐵/絕區零）"))
+                continue
+
+            # ② 使用者輸入角色名
+            if user_id in user_context and user_context[user_id] == "characterguide":
+                character = match_character(text)
+
+                if character is None:
+                    line_bot_api.reply_message(
+                        event.reply_token,
+                        TextSendMessage("找不到這個角色，請確認名字是否正確！"))
+                    continue
+
+                # 找圖片，找不到就回文字
+                img_url = CHARACTER_IMAGES.get(character)                
+                if img_url:
+                    # 有圖片 → 回覆圖片
+                    line_bot_api.reply_message(
+                        event.reply_token,
+                        ImageSendMessage(
+                            original_content_url=img_url,
+                            preview_image_url=img_url))
+                else:
+                    # 沒有圖片 → 回文字訊息
+                    line_bot_api.reply_message(
+                        event.reply_token,
+                        TextSendMessage(f"不好意思，{character} 目前還沒有攻略圖片"))
+
+
+            # ③ 未選功能 → 引導選單
             line_bot_api.reply_message(
-                reply_token,
-                TextSendMessage(text="請先從選單選擇要查詢的模式。"))
-
-    return jsonify({}), 200
-
-if __name__ == "__main__":
-    app.run(port=5000)
+                event.reply_token,
+                TextSendMessage("請先從下方選單點『角色培養攻略』喔！"))
+    return 'OK'
