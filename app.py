@@ -67,53 +67,37 @@ def match_character(user_input):
 
 # LINE Webhook 主程式
 @app.route("/callback", methods=['POST'])
-def callback():
-    signature = request.headers['X-Line-Signature']
-    body = request.get_data(as_text=True)
-    events = parser.parse(body, signature)
+def handle_message(event):
+    user_id = event.source.user_id
+    text = event.message.text.strip()
 
-    for event in events:
-        user_id = event.source.user_id
+    # ① Rich Menu 文字觸發角色培養攻略流程 ---
+    if text == "角色培養攻略":
+        user_context[user_id] = "character_guide"
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text="請輸入你想查詢的角色名稱（例如：角色A）"))
+        return
 
-        if isinstance(event, MessageEvent) and isinstance(event.message, TextMessage):
-            text = event.message.text.strip()
-
-            # ① Rich Menu 按鈕文字
-            if text == "角色培養攻略":
-                user_context[user_id] = "characterguide"
-                line_bot_api.reply_message(
-                    event.reply_token,
-                    TextSendMessage("請輸入角色名稱（原神/崩鐵/絕區零）"))
-                continue
-
-            # ② 使用者輸入角色名
-            if user_id in user_context and user_context[user_id] == "characterguide":
-                character = match_character(text)
-
-                if character is None:
-                    line_bot_api.reply_message(
-                        event.reply_token,
-                        TextSendMessage("找不到這個角色，請確認名字是否正確！"))
-                    continue
-
-                # 找圖片，找不到就回文字
-                img_url = CHARACTER_IMAGES.get(character)                
-                if img_url:
-                    # 有圖片 → 回覆圖片
-                    line_bot_api.reply_message(
-                        event.reply_token,
-                        ImageSendMessage(
-                            original_content_url=img_url,
-                            preview_image_url=img_url))
-                else:
-                    # 沒有圖片 → 回文字訊息
-                    line_bot_api.reply_message(
-                        event.reply_token,
-                        TextSendMessage(f"不好意思，{character} 目前還沒有攻略圖片"))
-
-
-            # ③ 未選功能 → 引導選單
+    # ② 使用者輸入角色名
+    if user_id in user_context and user_context[user_id] == "characterguide":
+        character = match_character(text)
+        if character is None:
             line_bot_api.reply_message(
                 event.reply_token,
-                TextSendMessage("請先從下方選單點『角色培養攻略』喔！"))
-    return 'OK'
+                TextSendMessage("找不到這個角色，請確認名字是否正確！"))
+            continue
+
+    # 找圖片
+    img_url = CHARACTER_IMAGES.get(character)
+    line_bot_api.reply_message(
+        event.reply_token,
+        ImageSendMessage(
+            original_content_url=img_url,
+            preview_image_url=img_url))
+
+    # ③ 未選功能 → 引導選單
+    line_bot_api.reply_message(
+        event.reply_token,
+        TextSendMessage("請先從下方選單點『角色培養攻略』"))
+return 'OK'
