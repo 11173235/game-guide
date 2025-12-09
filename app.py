@@ -5,6 +5,7 @@ from google.oauth2 import service_account
 import google.auth.transport.requests
 import requests
 import json
+import os
 
 app = Flask(__name__)
 
@@ -111,7 +112,6 @@ def callback():
         events = parser.parse(body, signature)
     except:
         return 'OK'
-    
     for event in events:
         if isinstance(event, MessageEvent) and isinstance(event.message, TextMessage):
             handle_message(event)
@@ -146,3 +146,6 @@ def handle_message(event):
             original_content_url=img_url,
             preview_image_url=img_url))
     return 'OK'
+
+port = int(os.environ.get("PORT", 5000))
+app.run(host="0.0.0.0", port=port)
