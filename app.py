@@ -135,9 +135,11 @@ def dialogflow_webhook():
     # 活動更新資訊模式
     if text == "活動更新資訊":
         user_context[user_id] = "eventupdates"
-        return flex_choose_version()
-
-        # 活動更新資訊選單 → 判斷版本文字
+        return jsonify({"payload": {"line": {"messages": [flex_choose_version()]}}})
+        
+    # 使用者已進入活動更新資訊模式
+    if user_context.get(user_id) == "eventupdates":
+        # 判斷版本文字
         if text in ACTIVITY_DATA:
             data = ACTIVITY_DATA[text]
     
@@ -152,10 +154,7 @@ def dialogflow_webhook():
             elif data["type"] == "text":
                 event_lines = [f"{e['name']}（{e['time']}）" for e in data["events"]]
                 final_text = text + " 已公開活動：\n" + "\n".join(event_lines)
-    
-                return jsonify({
-                    "fulfillmentMessages": [
-                        {"text": {"text": [final_text]}}]})
+                return jsonify({"fulfillmentMessages": [{"text": {"text": [final_text]}}]})
 
 
     # 預設回覆
