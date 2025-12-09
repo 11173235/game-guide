@@ -1,6 +1,8 @@
 from flask import Flask, request
 from linebot import LineBotApi, WebhookParser
 from linebot.models import MessageEvent, TextMessage, TextSendMessage, ImageSendMessage
+from google.oauth2 import service_account
+import google.auth.transport.requests
 import requests
 import json
 
@@ -9,22 +11,27 @@ app = Flask(__name__)
 line_bot_api = LineBotApi('anVtJcf0vZHWkiEt0A6Dbmu7/pd4d8vyDFoTlMSYkGDJTN2BBKR1U0yDFr0dOM4iAuxnZ4DrWXjd1+KW/v7Qpr44FeJ5yej8tThV+8OroQ9MpgEFq8RPFIaJvHvU3gCyT1Jz5PlSDxY0yhhzP4zB7QdB04t89/1O/w1cDnyilFU=')
 parser = WebhookParser('2d309aac1dc97f255aad5d939ba1baa6')
 dialogflow_project_ID = "gameguide-w9ep"
-DIALOGFLOW_PROJECT_ID = "你的 project id"
-DIALOGFLOW_LANGUAGE_CODE = "zh-TW"
+
+def generate_access_token():
+    credentials = service_account.Credentials.from_service_account_file(
+        "service-account.json",
+        scopes=["https://www.googleapis.com/auth/cloud-platform"])
+    request = google.auth.transport.requests.Request()
+    credentials.refresh(request)
+    return credentials.token
 
 def call_dialogflow(text):
-    url = f"https://dialogflow.googleapis.com/v2/projects/{DIALOGFLOW_PROJECT_ID}/agent/sessions/line_bot_session:detectIntent"
+    url = f"https://dialogflow.googleapis.com/v2/projects/{dialogflow_project_ID}/agent/sessions/line_bot_session:detectIntent"
+    access_token = generate_access_token()
     headers = {
-        "Authorization": "Bearer YOUR_DIALOGFLOW_ACCESS_TOKEN",
+        "Authorization": "Bearer {access_token}",
         "Content-Type": "application/json"}
     payload = {
         "query_input": {
             "text": {
-                "text": text,
-                "language_code": DIALOGFLOW_LANGUAGE_CODE}}}
+                "text": text,}}}
     resp = requests.post(url, headers=headers, json=payload)
     data = resp.json()
-
     entities = {}
     try:
         parameters = data['queryResult']['parameters']
