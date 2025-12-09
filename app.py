@@ -1,6 +1,4 @@
-from flask import Flask, request
-from linebot import LineBotApi, WebhookParser
-from linebot.models import MessageEvent, TextMessage, TextSendMessage, ImageSendMessage
+from flask import Flask, request, jsonify
 from google.oauth2 import service_account
 import google.auth.transport.requests
 import requests
@@ -9,44 +7,9 @@ import os
 
 app = Flask(__name__)
 
-line_bot_api = LineBotApi('anVtJcf0vZHWkiEt0A6Dbmu7/pd4d8vyDFoTlMSYkGDJTN2BBKR1U0yDFr0dOM4iAuxnZ4DrWXjd1+KW/v7Qpr44FeJ5yej8tThV+8OroQ9MpgEFq8RPFIaJvHvU3gCyT1Jz5PlSDxY0yhhzP4zB7QdB04t89/1O/w1cDnyilFU=')
-parser = WebhookParser('2d309aac1dc97f255aad5d939ba1baa6')
 dialogflow_project_ID = "gameguide-w9ep"
 
-def generate_access_token():
-    credentials = service_account.Credentials.from_service_account_file(
-        "gameguide-w9ep-27bc7ec71e52.json",
-        scopes=["https://www.googleapis.com/auth/cloud-platform"])
-    request = google.auth.transport.requests.Request()
-    credentials.refresh(request)
-    return credentials.token
-
-def call_dialogflow(user_id, text):
-    session_id = user_id  # 使用 LINE user_id 當 session
-    url = f"https://dialogflow.googleapis.com/v2/projects/{dialogflow_project_ID}/agent/sessions/{session_id}:detectIntent"
-    access_token = generate_access_token()
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-        "Content-Type": "application/json"}
-    payload = {
-        "query_input": {
-            "text": {
-                "text": text,
-                "language_code": "zh-TW"}}}
-    resp = requests.post(url, headers=headers, json=payload)
-    data = resp.json()
-    entities = {}
-    try:
-        parameters = data['queryResult']['parameters']
-        for e in ["genshincharacter", "starrailcharacter", "zzzcharacter"]:
-            if e in parameters and parameters[e]:
-                entities[e] = parameters[e]
-    except:
-        pass
-
-    return {"entities": entities}
-
-# 記錄使用者流程模式
+# User context（紀錄模式）
 user_context = {}
 
 # 角色圖片字典
@@ -93,67 +56,51 @@ CHARACTER_IMAGES = {
     "「席德」": "https://upload-os-bbs.hoyolab.com/upload/2025/09/02/370699309/29e9eb5ba9edeeaccb1fe88c943830bc_4293272389443311205.jpg",
     "「扳機」": "https://upload-os-bbs.hoyolab.com/upload/2025/03/31/370699309/e4288113f121760254acc55dec278244_7842277090726115056.png",}
 
-# Dialogflow entity 比對
-def match_character(user_id, text):
-    result = call_dialogflow(user_id, text)
-    entities = result.get("entities", {})
-
-    # 找到第一個命中的角色名稱（使用 entity 的標準值）
+# 從 webhook 判斷角色名稱
+def match_character_from_webhook(body):
+    params = body["queryResult"].get("parameters", {})
     for e in ["genshincharacter", "starrailcharacter", "zzzcharacter"]:
-        if e in entities:
-            return entities[e]
+        if params.get(e):
+            return params[e]
     return None
 
-# LINE Webhook 主程式
-@app.route("/callback", methods=['POST'])
-def callback():
-    signature = request.headers['X-Line-Signature']
-    body = request.get_data(as_text=True)
-    print("Webhook body:", body)
-    print("Signature:", signature)
+# Dialogflow fulfillment webhook 主程式
+@app.route("/callback", methods=["POST"])
+def dialogflow_webhook():
+    body = request.get_json(force=True)
+    print("Webhook received:", json.dumps(body, ensure_ascii=False))
 
-    try:
-        events = parser.parse(body, signature)
-        print("Parsed events:", events)
-    except:
-        return 'OK'
-    for event in events:
-        if isinstance(event, MessageEvent) and isinstance(event.message, TextMessage):
-            handle_message(event)
-    return 'OK'
+    text = body["queryResult"].get("queryText", "")
+    session = body.get("session", "")
+    user_id = session.split("/")[-1]
 
-def handle_message(event):
-    user_id = event.source.user_id
-    text = event.message.text.strip()
-
-    # ① Rich Menu 文字觸發角色培養攻略流程 ---
-    is_char_guide = (text == "角色培養攻略")
-    print("是否進入角色培養攻略模式:", is_char_guide)
+    # ① 進入角色攻略模式
     if text == "角色培養攻略":
         user_context[user_id] = "characterguide"
-        line_bot_api.reply_message(
-            event.reply_token,
-            TextSendMessage(text="請輸入你想查詢的角色名稱（例如：角色A）"))
-        return
+        return jsonify({
+            "fulfillmentText": "請輸入你想查詢的角色名稱"})
 
-    # ② 使用者輸入角色名
-    if user_id in user_context and user_context[user_id] == "characterguide":
-        character = match_character(user_id, text)
-        if character is None:
-            line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage("找不到這個角色，請確認名字是否正確！"))
-            return
+    # ② 使用者正在角色查詢模式
+    if user_context.get(user_id) == "characterguide":
+        character = match_character_from_webhook(body)
 
-    # ③ 找圖片
-    img_url = CHARACTER_IMAGES.get(character)
-    if img_url:
-        line_bot_api.reply_message(
-            event.reply_token,
-            ImageSendMessage(
-                original_content_url=img_url,
-                preview_image_url=img_url))
-    return 'OK'
+        if not character:
+            user_context.pop(user_id, None)
+            return jsonify({"fulfillmentText": "找不到這個角色，請確認名字是否正確！"})
 
+        img_url = CHARACTER_IMAGES.get(character)
+        user_context.pop(user_id, None)
+
+        if img_url:
+            # 傳回圖片
+            return jsonify({
+                "fulfillmentMessages": [{
+                        "image": {
+                            "imageUri": img_url}}]})
+
+    # 非角色查詢情境 → 預設回覆
+    return jsonify({"fulfillmentText": f"收到：{text}"})
+
+# 啟動 server
 port = int(os.environ.get("PORT", 5000))
 app.run(host="0.0.0.0", port=port)
