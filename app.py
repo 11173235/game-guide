@@ -61,7 +61,7 @@ def match_character_from_webhook(body):
     params = body["queryResult"].get("parameters", {})
     for e in ["genshincharacter", "starrailcharacter", "zzzcharacter"]:
         if params.get(e):
-            return params[e]
+            return params[e][0]
     return None
 
 # Dialogflow fulfillment webhook 主程式
