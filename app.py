@@ -61,6 +61,7 @@ def match_character_from_webhook(body):
     params = body["queryResult"].get("parameters", {})
     for e in ["genshincharacter", "starrailcharacter", "zzzcharacter"]:
         if params.get(e):
+            print(params[e],params[e][0])
             return params[e][0]
     return None
 
