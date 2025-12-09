@@ -31,7 +31,8 @@ def call_dialogflow(user_id, text):
     payload = {
         "query_input": {
             "text": {
-                "text": text,}}}
+                "text": text,
+                "language_code": "zh-TW"}}}
     resp = requests.post(url, headers=headers, json=payload)
     data = resp.json()
     entities = {}
@@ -140,11 +141,12 @@ def handle_message(event):
 
     # ③ 找圖片
     img_url = CHARACTER_IMAGES.get(character)
-    line_bot_api.reply_message(
-        event.reply_token,
-        ImageSendMessage(
-            original_content_url=img_url,
-            preview_image_url=img_url))
+    if img_url:
+        line_bot_api.reply_message(
+            event.reply_token,
+            ImageSendMessage(
+                original_content_url=img_url,
+                preview_image_url=img_url))
     return 'OK'
 
 port = int(os.environ.get("PORT", 5000))
