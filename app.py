@@ -61,16 +61,6 @@ def match_character_from_webhook(body):
     params = body["queryResult"].get("parameters", {})
     print(params[0])
     for e in ["genshincharacter", "starrailcharacter", "zzzcharacter"]:
-        
-        value = params.get(e)
-        if value:
-            if isinstance(value, list):
-                print("params[e] 是 list")
-            elif isinstance(value, str):
-                print("params[e] 是 str")
-            else:
-                print(f"params[e] 是其他型別: {type(value)}")
-
         if params.get(e):
             return params[e]
     return None
@@ -84,6 +74,22 @@ def dialogflow_webhook():
     text = body["queryResult"].get("queryText", "")
     session = body.get("session", "")
     user_id = session.split("/")[-1]
+
+    params = body.get("queryResult", {}).get("parameters", {})
+
+    # 把所有 entity 都回傳給使用者
+    messages = []
+    for e in ["genshincharacter", "starrailcharacter", "zzzcharacter"]:
+        if e in params and params[e]:
+            value = params[e]
+            # 確保回傳的是字串（如果是 list 就取第一個元素）
+            value_str = value[0] if isinstance(value, list) else value
+            messages.append(f"Entity: {e}, Value: {value_str}")
+
+    if messages:
+        return jsonify({"fulfillmentText": "\n".join(messages)})
+    else:
+        return jsonify({"fulfillmentText": "沒有找到任何 entity"})
 
     # ① 進入角色攻略模式
     if text == "角色培養攻略":
