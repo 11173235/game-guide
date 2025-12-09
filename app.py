@@ -87,9 +87,8 @@ def dialogflow_webhook():
             return jsonify({"fulfillmentText": "查無此角色，請重新輸入角色名稱"})
 
         img_url = CHARACTER_IMAGES.get(character)
-        user_context.pop(user_id, None)
         if img_url:
-            # 傳回圖片
+            # 傳回文字+圖片
             return jsonify({
                 "fulfillmentMessages": [
                     {"text": {"text": [f"{character} 的培養攻略："]}},
