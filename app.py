@@ -128,7 +128,7 @@ def get_character_list_text():
 
 #判斷遊戲版本+獲取版本資料
 def find_game_and_version(game, version):
-    # 如果使用者有輸入遊戲名稱 → 直接查指定遊戲，不會誤判
+    # 如果使用者有輸入遊戲名稱
     if game:
         if version:
             for key in ["current", "next"]:
@@ -174,7 +174,12 @@ def get_dungeon_link(game, dungeon):
             return g, dungeon_data[dungeon]
     return None, None
 
-
+# 清理變數
+def clear(user_game,user_version):
+    game= user_game
+    version= user_version
+    user_context[user_id].pop("game", None)
+    user_context[user_id].pop("version", None)
 
 # Dialogflow fulfillment webhook 主程式
 @app.route("/callback", methods=["POST"])
@@ -219,7 +224,7 @@ def dialogflow_webhook():
     if mode == "eventinformation":
         params = body["queryResult"].get("parameters", {})
         # 取得使用者輸入
-        user_game = params.get("game")        # 遊戲（可能為 None）
+        user_game = params.get("game")        # 遊戲
         user_version = str(params.get("gameversion"))  # 版本號
         
         # 查找遊戲版本
@@ -238,22 +243,25 @@ def dialogflow_webhook():
         
         # 判斷遊戲類型，回傳圖片或文字
         if user_game in ["原神", "崩壞：星穹鐵道"] and "img" in data:
+            clear(user_game,user_version)
             return jsonify({
                 "fulfillmentMessages": [
                     {"text": {"text": [f"{user_game}{user_version}版本活動資訊如下："]}},
                     {"image": {"imageUri": data["img"]}}]})
         elif user_game == "絕區零" and "events" in data:
             activity_text = "\n".join([f"{a['name']} ({a['time']})" for a in data["events"]])
+            clear(user_game,user_version)
             return jsonify({"fulfillmentMessages": [{"text": {"text": [f"{user_game}{user_version}版本活動資訊如下：\n{activity_text}"]}}]})
         else:
+            clear(user_game,user_version)
             return jsonify({"fulfillmentMessages": [{"text": {"text": [f"{user_game}{user_version}版本活動資訊尚未公布"]}}]})
 
     # 使用者已進入副本攻略模式
     if mode == "dungeonguide":
         params = body["queryResult"].get("parameters", {})
         # 取得使用者輸入
-        user_game = params.get("game")       # 遊戲名稱，可為 None
-        user_dungeon = params.get("dungeon")  # 副本名稱，必填
+        user_game = params.get("game")       # 遊戲名稱
+        user_dungeon = params.get("dungeon")  # 副本名稱
 
         #查找遊戲副本
         user_game, data = get_dungeon_link(user_game, user_dungeon)
