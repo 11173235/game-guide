@@ -56,13 +56,15 @@ CHARACTER_IMAGES = {
     "「席德」": "https://upload-os-bbs.hoyolab.com/upload/2025/09/02/370699309/29e9eb5ba9edeeaccb1fe88c943830bc_4293272389443311205.jpg",
     "「扳機」": "https://upload-os-bbs.hoyolab.com/upload/2025/03/31/370699309/e4288113f121760254acc55dec278244_7842277090726115056.png",}
 
-# 遊戲版本日曆圖/文
 ACTIVITY_DATA = {
-    "原神 月之二": {"type": "image","url": "https://fastcdn.hoyoverse.com/mi18n/hk4e_global/m20251110hy2ebg1fy8/upload/c5864ab82c466958c72ec56529a63ffe_5873909476729017748.jpg"},
-    "崩壞：星穹鐵道 3.7": {"type": "image","url": "https://upload-os-bbs.hoyolab.com/upload/2025/11/04/248389732/0850ec1660cf3cb49ab4702b22af30cc_4548357368892651293.jpg"},
-    "崩壞：星穹鐵道 3.8": {"type": "image","url": "https://upload-os-bbs.hoyolab.com/upload/2025/12/07/248389732/23fc10410ba0bc077d367a8542fb9a30_4745388983360381307.jpg"},
-    "絕區零 2.4": {"type": "text",
-        "events": [
+    "原神": {
+        "current": {"version": "6.2", "img": "https://fastcdn.hoyoverse.com/mi18n/hk4e_global/m20251110hy2ebg1fy8/upload/c5864ab82c466958c72ec56529a63ffe_5873909476729017748.jpg"},
+        "next": None},
+    "崩鐵": {
+        "current": {"version": "3.7", "img": "https://upload-os-bbs.hoyolab.com/upload/2025/11/04/248389732/0850ec1660cf3cb49ab4702b22af30cc_4548357368892651293.jpg"},
+        "next": {"version": "3.8", "img": "https://upload-os-bbs.hoyolab.com/upload/2025/12/07/248389732/23fc10410ba0bc077d367a8542fb9a30_4745388983360381307.jpg"}},
+    "絕區零": {
+        "current": {"version": "2.4", "events": [
             {"name": "第一期調頻:琉音/雨果", "time": "11/26 - 12/17"},
             {"name": "第二期調頻:般岳/艾蓮", "time": "12/17 - 12/29"},
             {"name": "全新放送", "time": "11/26 - 12/29"},
@@ -73,7 +75,8 @@ ACTIVITY_DATA = {
             {"name": "擬境序列對決", "time": "12/8 - 12/29"},
             {"name": "兔子小姐百分百", "time": "12/16 - 12/29"},
             {"name": "先遣賞金-區域巡防", "time": "12/11 - 12/16"},
-            {"name": "資料懸賞-實戰模擬", "time": "尚未公布"}]}}
+            {"name": "資料懸賞-實戰模擬", "time": "尚未公布"}]},
+        "next": None}}
 
 # 從 webhook 判斷角色名稱
 def match_character_from_webhook(body):
@@ -82,46 +85,6 @@ def match_character_from_webhook(body):
         if params.get(e):
             return params[e]
     return None
-
-# FLEX版本選單
-def choose_version():
-    return jsonify({
-    "payload": {
-        "line": {
-                    "type": "text",
-                    "text": "請選擇要查看的遊戲版本活動：",
-                    "quickReply": {
-                        "items": [
-                            {
-                                "type": "action",
-                                "action": {
-                                    "type": "message",
-                                    "label": "原神 月之三",
-                                    "text": "原神 月之三"
-                                }
-                            },
-                            {
-                                "type": "action",
-                                "action": {
-                                    "type": "message",
-                                    "label": "崩壞：星穹鐵道 3.7",
-                                    "text": "崩壞：星穹鐵道 3.7"
-                                }
-                            },
-                            {
-                                "type": "action",
-                                "action": {
-                                    "type": "message",
-                                    "label": "崩壞：星穹鐵道 3.8",
-                                    "text": "崩壞：星穹鐵道 3.8"
-                                }
-                            },
-                            {
-                                "type": "action",
-                                "action": {
-                                    "type": "message",
-                                    "label": "絕區零 2.4",
-                                    "text": "絕區零 2.4"}}]}}}})
 
 # Dialogflow fulfillment webhook 主程式
 @app.route("/callback", methods=["POST"])
@@ -155,27 +118,51 @@ def dialogflow_webhook():
     # 活動更新資訊模式
     if text == "活動更新資訊":
         user_context[user_id] = "eventupdates"
-        return choose_version()
         
     # 使用者已進入活動更新資訊模式
     if user_context.get(user_id) == "eventupdates":
         # 判斷版本文字
-        if text in ACTIVITY_DATA:
-            data = ACTIVITY_DATA[text]
-    
-            # 有活動日曆圖（原神/崩鐵）
-            if data["type"] == "image":
-                return jsonify({
-                    "fulfillmentMessages": [
-                        {"text": {"text": [f"{text} 活動日曆："]}},
-                        {"image": {"imageUri": data["url"]}}]})
-    
-            # 純文字活動資訊（絕區零）
-            elif data["type"] == "text":
-                event_lines = [f"{e['name']}（{e['time']}）" for e in data["events"]]
-                final_text = text + " 已公開活動：\n" + "\n".join(event_lines)
-                return jsonify({"fulfillmentMessages": [{"text": {"text": [final_text]}}]})
-
+        body = request.get_json(force=True)
+        params = body["queryResult"].get("parameters", {})
+        
+        # 取得使用者輸入
+        user_version = params.get("version")  # 版本號
+        user_game = params.get("game")        # 遊戲（可能為 None）
+        
+        # 判斷遊戲
+        if not user_game:
+            for game, versions in ACTIVITY_DATA.items():
+                # 判斷 current
+                if "current" in versions and user_version == versions["current"]["version"]:
+                    user_game = game
+                    break
+                # 判斷 next
+                if "next" in versions and user_version == versions["next"]["version"]:
+                    user_game = game
+                    break
+        # 若找不到符合的遊戲
+        if not user_game:
+            return jsonify({"fulfillmentText": f"找不到 {user_version} 對應的遊戲"})
+        
+        # 判斷版本
+        if user_version == ACTIVITY_DATA[user_game]["current"]["version"]:
+            data = ACTIVITY_DATA[user_game]["current"]
+        elif user_version == ACTIVITY_DATA[user_game]["next"]["version"]:
+            data = ACTIVITY_DATA[user_game]["next"]
+        else:
+            return jsonify({"fulfillmentText": f"{user_game} 沒有 {user_version} 版本活動資訊"})
+        
+        # 判斷遊戲類型，回傳圖片或文字
+        if user_game in ["原神", "崩壞：星穹鐵道"] and "img" in data:
+            return jsonify({
+                "fulfillmentMessages": [
+                    {"text": {"text": [f"{user_game} {user_version} 版本活動資訊如下："]}},
+                    {"image": {"imageUri": data["img"]}}]})
+        elif user_game == "絕區零" and "events" in data:
+            activity_text = "\n".join([f"{a['name']} ({a['time']})" for a in data["events"]])
+            return jsonify({"fulfillmentMessages": [{"text": {"text": [f"{user_game} {user_version} 版本活動資訊如下：\n{activity_text}"]}}]})
+        else:
+            return jsonify({"fulfillmentText": f"{user_game} {user_version} 版本活動資訊尚未公布"})
 
     # 預設回覆
     return jsonify({"fulfillmentText": f"收到：{text}"})
