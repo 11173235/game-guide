@@ -85,7 +85,6 @@ def match_character_from_webhook(body):
 
 # FLEX版本選單
 def choose_version():
-    quick_reply = 
     return jsonify({
     "payload": {
         "line": {
@@ -134,8 +133,6 @@ def choose_version():
         }
     }
 })
-
-    return quick_reply
 
 # Dialogflow fulfillment webhook 主程式
 @app.route("/callback", methods=["POST"])
