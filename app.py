@@ -82,12 +82,26 @@ ACTIVITY_DATA = {
 # 遊戲副本攻略網址
 dungeon_links = {
     "原神": {
-        "繁星秘境": "https://genshin-dungeon-link.com/starry",
-        "元素試煉": "https://genshin-dungeon-link.com/elemental"},
-    "崩鐵": {
-        "鋼鐵要塞": "https://honkai-dungeon-link.com/fortress"},
+        "深境螺旋": [
+            {"url": "https://www.bilibili.com/video/BV1XMC1BdEZy/", "difficulty": ["12層"]}],
+        "幻想真境劇詩": [
+            {"url": "https://www.bilibili.com/video/BV1GDSzBxEEf/", "difficulty": ["月諭","卓越"]}],
+        "幽境危戰": [
+            {"url": "https://www.bilibili.com/video/BV1XMC1BdEZy/", "difficulty": ["難度5"]}]},
+    "崩壞：星穹鐵道": {
+        "渾沌回憶": [
+            {"url": "https://www.bilibili.com/video/BV1LjmcB7EmH/", "difficulty": ["其十二"]}],
+        "虛構敘事": [
+            {"url": "https://www.bilibili.com/video/BV17GUTBMEWU/", "difficulty": ["4層"]}],
+        "末日幻影": [
+            {"url": "https://www.bilibili.com/video/BV1fNkRBdEuG/", "difficulty": ["4層"]}],
+        "異相仲裁": [
+            {"url": "https://www.bilibili.com/video/BV1CV17BiE1A/", "difficulty": ["騎士"]}]},
     "絕區零": {
-        "零之深淵": "https://zero-dungeon-link.com/abyss"}}
+        "式輿防衛戰": [
+            {"url": "https://www.bilibili.com/video/BV12q2LBKEFk/", "difficulty": ["7層"]}],
+        "危局強襲戰": [
+            {"url": "https://www.bilibili.com/video/BV1gbSVByEys/", "difficulty": None}]}}
 
 # 從 webhook 判斷角色名稱
 def match_character_from_webhook(body):
@@ -159,6 +173,8 @@ def get_dungeon_link(game, dungeon):
         if dungeon in dungeon_data:
             return g, dungeon_data[dungeon]
     return None, None
+
+
 
 # Dialogflow fulfillment webhook 主程式
 @app.route("/callback", methods=["POST"])
@@ -232,24 +248,34 @@ def dialogflow_webhook():
         else:
             return jsonify({"fulfillmentMessages": [{"text": {"text": [f"{user_game}{user_version}版本活動資訊尚未公布"]}}]})
 
-        # 使用者已進入副本攻略模式
-        if mode == "dungeonguide":
-            params = body["queryResult"].get("parameters", {})
-            # 取得使用者輸入
-            user_game = params.get("game")       # 遊戲名稱，可為 None
-            user_dungeon = params.get("dungeon")  # 副本名稱，必填
+    # 使用者已進入副本攻略模式
+    if mode == "dungeonguide":
+        params = body["queryResult"].get("parameters", {})
+        # 取得使用者輸入
+        user_game = params.get("game")       # 遊戲名稱，可為 None
+        user_dungeon = params.get("dungeon")  # 副本名稱，必填
 
-            #查找遊戲副本
-            user_game, data = get_dungeon_link(user_game, user_dungeon)
-            if data:
-                return jsonify({"fulfillmentMessages": [{"text": {"text": [f"{user_game} 的 {user_dungeon} 副本攻略網址如下：{data}"]}}]})
-            else:
-                # 提示副本不存在或列出可查詢副本
-                if user_game and user_game in dungeon_links:
-                    available = "、".join(dungeon_links[user_game].keys())
-                    return jsonify({"fulfillmentMessages": [{"text": {"text": [f"查無{user_dungeon}副本，{user_game}可查詢的副本有：{available}"]}}]})
+        #查找遊戲副本
+        user_game, data = get_dungeon_link(user_game, user_dungeon)
+        if data:
+            reply_lines = []
+            for item in data:
+                url = item["url"]
+                diff = item.get("difficulty")
+                if diff:
+                    diff_text = "、".join(diff)
+                    reply_lines.append(f"- 難度：{diff_text}\n  攻略：{url}")
                 else:
-                    return jsonify({"fulfillmentMessages": [{"text": {"text": ["查無該副本，請確認副本名稱或遊戲名稱"]}}]})
+                    reply_lines.append(f"- 攻略：{url}")
+            reply_text = "\n".join(reply_lines)
+            return jsonify({"fulfillmentMessages": [{"text": {"text": [f"{user_game}《{user_dungeon}》副本攻略如下：\n{reply_text}"]}}]})
+        else:
+            # 提示副本不存在或列出可查詢副本
+            if user_game and user_game in dungeon_links:
+                available = "、".join(dungeon_links[user_game].keys())
+                return jsonify({"fulfillmentMessages": [{"text": {"text": [f"查無{user_dungeon}副本，{user_game}可查詢的副本有：{available}"]}}]})
+            else:
+                return jsonify({"fulfillmentMessages": [{"text": {"text": ["查無該副本，請確認副本名稱或遊戲名稱"]}}]})
             
 
     # 預設回覆
