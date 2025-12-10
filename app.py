@@ -84,71 +84,58 @@ def match_character_from_webhook(body):
     return None
 
 # FLEX版本選單
-def flex_choose_version():
-    flex = {
-  "type": "bubble",
-  "size": "mega",
-  "header": {
-    "type": "box",
-    "layout": "vertical",
-    "contents": [
-      {
-        "type": "text",
-        "text": "活動更新資訊",
-        "size": "xl",
-        "weight": "bold",
-        "color": "#ffffff"
-      }
-    ],
-    "backgroundColor": "#000000",
-    "paddingAll": "xl"
-  },
-  "body": {
-    "type": "box",
-    "layout": "vertical",
-    "contents": [
-      {
-        "type": "button",
-        "action": {
-          "type": "message",
-          "label": "原神 月之三",
-          "text": "原神 月之三"
-        },
-        "style": "secondary",
-        "color": "#F2F2F2"
-      },
-      {
-        "type": "button",
-        "action": {
-          "type": "message",
-          "label": "崩壞：星穹鐵道 3.7",
-          "text": "崩壞：星穹鐵道 3.7"
-        },
-        "style": "secondary",
-        "color": "#F2F2F2"
-      },
-      {
-        "type": "button",
-        "action": {
-          "type": "message",
-          "label": "崩壞：星穹鐵道 3.8",
-          "text": "崩壞：星穹鐵道 3.8"
-        },
-        "style": "secondary",
-        "color": "#F2F2F2"
-      },
-      {
-        "type": "button",
-        "action": {
-          "type": "message",
-          "label": "絕區零 2.4",
-          "text": "絕區零 2.4"
-        },
-        "style": "secondary",
-        "color": "#F2F2F2"
-      }
-    ],"spacing": "lg"}}
-    return flex
+def choose_version():
+    quick_reply = 
+    return jsonify({
+    "payload": {
+        "line": {
+            "messages": [
+                {
+                    "type": "text",
+                    "text": "請選擇要查看的遊戲版本活動：",
+                    "quickReply": {
+                        "items": [
+                            {
+                                "type": "action",
+                                "action": {
+                                    "type": "message",
+                                    "label": "原神 月之三",
+                                    "text": "原神 月之三"
+                                }
+                            },
+                            {
+                                "type": "action",
+                                "action": {
+                                    "type": "message",
+                                    "label": "崩壞：星穹鐵道 3.7",
+                                    "text": "崩壞：星穹鐵道 3.7"
+                                }
+                            },
+                            {
+                                "type": "action",
+                                "action": {
+                                    "type": "message",
+                                    "label": "崩壞：星穹鐵道 3.8",
+                                    "text": "崩壞：星穹鐵道 3.8"
+                                }
+                            },
+                            {
+                                "type": "action",
+                                "action": {
+                                    "type": "message",
+                                    "label": "絕區零 2.4",
+                                    "text": "絕區零 2.4"
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    }
+})
+
+    return quick_reply
 
 # Dialogflow fulfillment webhook 主程式
 @app.route("/callback", methods=["POST"])
@@ -182,7 +169,7 @@ def dialogflow_webhook():
     # 活動更新資訊模式
     if text == "活動更新資訊":
         user_context[user_id] = "eventupdates"
-        return jsonify({"payload": {"line": {"messages": [flex_choose_version()]}}})
+        return choose_version()
         
     # 使用者已進入活動更新資訊模式
     if user_context.get(user_id) == "eventupdates":
