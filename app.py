@@ -86,6 +86,21 @@ def match_character_from_webhook(body):
             return params[e]
     return None
 
+# 支援角色名單
+def get_character_list_text():
+    all_chars = list(CHARACTER_IMAGES.keys())
+    game_names = ["原神", "崩壞：星穹鐵道", "絕區零"]
+    game_counts = [12, 13, 11]
+    start = 0
+    text_list = []
+    for game, count in zip(game_names, game_counts):
+        end = start + count
+        chars_for_game = all_chars[start:end]
+        char_names = "、".join(chars_for_game)  # 用頓號分隔
+        text_list.append(f"{game} 角色：{char_names}")
+        start = end
+    return "\n".join(text_list)
+
 #判斷遊戲名稱+獲取版本資料
 def find_game_and_version(game, version):
     # 如果使用者有輸入遊戲名稱 → 直接查指定遊戲，不會誤判
@@ -116,13 +131,14 @@ def dialogflow_webhook():
     # 進入角色攻略模式
     if text == "角色培養攻略":
         user_context[user_id] = "characterguide"
-        return jsonify({"fulfillmentMessages": [{"text": {"text": ["請輸入你想查詢的角色名稱"]}}]})
+        return jsonify({"fulfillmentMessages": [{"text": {"text": ["請輸入你想查詢的角色名稱(僅支援近期可抽取角色)"]}}]})
 
     # 使用者正在角色查詢模式
     if user_context.get(user_id) == "characterguide":
         character = match_character_from_webhook(body)
         if not character:
-            return jsonify({"fulfillmentMessages": [{"text": {"text": ["查無此角色，請重新輸入角色名稱"]}}]})
+            return jsonify({"fulfillmentMessages": [{"text": {"text": ["查無此角色，請重新輸入角色名稱\n目前支援角色如下：\n" + get_character_list_text()]}}
+    ]}}]})
 
         img_url = CHARACTER_IMAGES.get(character)
         if img_url:
