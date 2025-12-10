@@ -88,8 +88,6 @@ def choose_version():
     return jsonify({
     "payload": {
         "line": {
-            "messages": [
-                {
                     "type": "text",
                     "text": "請選擇要查看的遊戲版本活動：",
                     "quickReply": {
@@ -123,16 +121,7 @@ def choose_version():
                                 "action": {
                                     "type": "message",
                                     "label": "絕區零 2.4",
-                                    "text": "絕區零 2.4"
-                                }
-                            }
-                        ]
-                    }
-                }
-            ]
-        }
-    }
-})
+                                    "text": "絕區零 2.4"}}]}}}})
 
 # Dialogflow fulfillment webhook 主程式
 @app.route("/callback", methods=["POST"])
