@@ -231,6 +231,7 @@ def dialogflow_webhook():
         params = body["queryResult"].get("parameters", {})
         # 取得使用者輸入
         user_game = params.get("game")[0]        # 遊戲
+        print("user_game")
         user_version = str(params.get("gameversion"))  # 版本號
         
         # 查找遊戲版本
