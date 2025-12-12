@@ -1,13 +1,7 @@
 from flask import Flask, request, jsonify
-from google.oauth2 import service_account
-import google.auth.transport.requests
-import requests
 import json
-import os
 
 app = Flask(__name__)
-
-dialogflow_project_ID = "gameguide-w9ep"
 
 # User context（紀錄模式）
 user_context = {}
