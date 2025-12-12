@@ -140,11 +140,11 @@ def dialogflow_webhook():
         user_game=None
         user_version=None
         # 取得使用者輸入
-        user_game = params.get("game")                   # 遊戲
+        user_game = params.get("game")[0]                # 遊戲
         user_version = str(params.get("gameversion"))    # 版本號
         # 補參數
         if user_game:
-            game_data = activity_data[user_game][0]
+            game_data = activity_data[user_game]
             if not user_version:
                 if "next" in game_data:
                     user_version = list(game_data.keys())[0]  #str
