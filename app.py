@@ -91,7 +91,6 @@ def img_reply(msg, img_url):
 @app.route("/callback", methods=["POST"])
 def dialogflow_webhook():
     body = request.get_json(force=True)
-    print("Webhook received:", json.dumps(body, ensure_ascii=False))
     text = body["queryResult"].get("queryText", "")
     params = body["queryResult"].get("parameters", {})
     session = body.get("session", "")
