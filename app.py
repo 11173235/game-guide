@@ -141,7 +141,7 @@ def dialogflow_webhook():
         user_version=None
         # 取得使用者輸入
         user_game = params.get("game")                   # 遊戲
-        user_version = str(params.get("gameversion"))    # 版本號
+        user_version = str(params.get("gameversion"))    # 版本號 #str(None)="None"
         # 補參數
         if user_game:
             game_data = activity_data[user_game]
@@ -160,26 +160,28 @@ def dialogflow_webhook():
         #設定回傳內容
         if isinstance(user_version, str):
             data = activity_data.get(user_game, {}).get(user_version)
-            # 根據遊戲回傳圖片或文字
-            if user_game in ["原神", "崩壞：星穹鐵道"]:
-                return jsonify(img_reply(f"{user_game}{user_version}版本活動資訊如下：",data))
-            elif user_game == "絕區零" and "events" in data:
-                activity_list = "\n".join(data["events"])
-                return jsonify(reply(f"{user_game}{user_version}版本活動資訊如下：\n{activity_list}"))
+            if data:
+                # 根據遊戲回傳圖片或文字
+                if user_game in ["原神", "崩壞：星穹鐵道"]:
+                    return jsonify(img_reply(f"{user_game}{user_version}版本活動資訊如下：",data))
+                elif user_game == "絕區零" and "events" in data:
+                    activity_list = "\n".join(data["events"])
+                    return jsonify(reply(f"{user_game}{user_version}版本活動資訊如下：\n{activity_list}"))
+            else:
+                version_list = []
+                for game, game_data in activity_data.items():
+                    versions = list(game_data.keys())[0]
+                    if "next" not in game_data:
+                        versions = ",".join(game_data.keys())
+                    version_list.append(f"{game} 版本：{versions}")
+                version_list="\n".join(version_list)
+                return jsonify(reply(f"查無此版本資訊，請重新輸入遊戲版本\n目前可查詢版本如下：\n{version_list}"))
         elif isinstance(user_version, list):
             # data是list表示有下個版本資訊
             now_ver = user_version[0]
             next_ver = user_version[1]
             return jsonify(reply(f"請問要查詢{now_ver}還是{next_ver}的版本活動資訊？"))
-        else:
-            version_list = []
-            for game, game_data in activity_data.items():
-                versions = list(game_data.keys())[0]
-                if "next" not in game_data:
-                    versions = ",".join(game_data.keys())
-                version_list.append(f"{game} 版本：{versions}")
-            version_list="\n".join(version_list)
-            return jsonify(reply(f"查無此版本資訊，請重新輸入遊戲版本\n目前可查詢版本如下：\n{version_list}"))
+        
     
     # 使用者已進入週期副本攻略模式
     if mode == "dungeonguide":
