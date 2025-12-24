@@ -215,10 +215,10 @@ def dialogflow_webhook():
                     dungeons = "、".join(dungeon_urls[game].keys())
                     dungeon_list.append(f"{game} 副本：{dungeons}")
                 dungeon_list="\n".join(dungeon_list)
-                return jsonify(reply(f"查無副本，可查詢的副本有：{dungeon_list}"))
+                return jsonify(reply(f"查無副本，可查詢的副本有：\n{dungeon_list}"))
             else:
                 dungeon_list = "、".join(dungeon_urls[user_game].keys())
-                return jsonify(reply(f"{user_game}可查詢的副本有：{dungeon_list}"))
+                return jsonify(reply(f"{user_game}可查詢的副本有：\n{dungeon_list}"))
             
     # 預設回覆
     hint_dict = {
